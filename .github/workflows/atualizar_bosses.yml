@@ -1,0 +1,34 @@
+name: Atualizar Lista de Bosses (Semanal)
+
+on:
+  schedule:
+    # Roda todo domingo à meia-noite (UTC)
+    - cron: '0 0 * * 0'
+  workflow_dispatch: # Permite rodar manualmente clicando no botão
+
+jobs:
+  update-bosses:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v3
+
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Instalar bibliotecas
+        run: pip install requests
+
+      - name: Rodar script de Bosses
+        run: python atualizar_bosses.py
+
+      - name: Salvar arquivo JSON (Commit)
+        run: |
+          git config --global user.name 'GitHub Action Bot'
+          git config --global user.email 'action@github.com'
+          git add dados/bosses.json
+          git commit -m "Atualizacao semanal dos bosses" || echo "Sem bosses novos"
+          git push
