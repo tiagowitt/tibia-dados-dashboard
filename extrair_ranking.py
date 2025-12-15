@@ -5,8 +5,11 @@ from datetime import datetime
 import os
 
 # --- CONFIGURAÇÕES ---
-# Não precisamos mais da lista manual de mundos!
-# O script vai buscar isso sozinho.
+# Lista fixa de mundos
+WORLDS = [
+    "Collabra", "Issobra", "Venebra", "Descubra",
+    "Etebra", "Luzibra", "Ustebra", "Yubra"
+]
 
 # Configurações do Ranking
 RANK_CATEGORY = "experience"
@@ -23,62 +26,49 @@ def get_api_data(url):
     """Função genérica com retries simples"""
     try:
         response = requests.get(url, timeout=15)
-        response.raise_for_status()
+        # Se der erro 404 ou 500, não quebra o script, apenas retorna None
+        if response.status_code != 200:
+            print(f"   [API Status {response.status_code}] URL: {url}")
+            return None
         return response.json()
     except Exception as e:
-        print(f"   [Erro API] {e}")
+        print(f"   [Erro Conexão] {e}")
         return None
 
-# --- NOVA FUNÇÃO: OBTER LISTA DE MUNDOS ---
-def get_active_worlds():
-    print("--- Buscando lista de mundos ativos... ---")
-    url = "https://api.tibiadata.com/v4/worlds"
-    data = get_api_data(url)
-    
-    world_list = []
-    if data and 'worlds' in data and 'regular_worlds' in data['worlds']:
-        for world in data['worlds']['regular_worlds']:
-            world_list.append(world['name'])
-            
-    print(f"Total de mundos encontrados: {len(world_list)}")
-    return world_list
-
-# --- LÓGICA DE EXTRAÇÃO: HIGHSCORES ---
+# --- LÓGICA DE EXTRAÇÃO: HIGHSCORES (Corrigida para pegar até Rank 1000) ---
 def process_highscores(world):
-    print(f"   > [Ranking XP] Iniciando...")
+    print(f"   > [Ranking XP] Iniciando: {world}")
     all_players = []
+    page = 1
     
-    # Pega página 1
-    url_p1 = f"https://api.tibiadata.com/v4/highscores/{world}/{RANK_CATEGORY}/{RANK_PROFESSION}/1"
-    data = get_api_data(url_p1)
-    
-    if not data or 'highscores' not in data:
-        print(f"   > [Ranking XP] Falha ao obter dados. Pulando.")
-        return
-
-    page_1_list = data['highscores'].get('highscore_list', [])
-    all_players.extend(page_1_list)
-    
-    try:
-        total_pages = data.get('highscores', {}).get('highscores_page', {}).get('total_pages', 1)
-    except:
-        total_pages = 1
+    # Loop Infinito com trava: Continua pegando páginas até a 20 ou acabar
+    while True:
+        url = f"https://api.tibiadata.com/v4/highscores/{world}/{RANK_CATEGORY}/{RANK_PROFESSION}/{page}"
+        data = get_api_data(url)
         
-    # Limite de segurança: Se tiver mais de 20 páginas (Top 1000), corta.
-    # Isso evita ficar preso eternamente em mundos muito populosos se algo bugar.
-    if total_pages > 20:
-        total_pages = 20
-
-    # Loop páginas restantes
-    if total_pages > 1:
-        for page in range(2, total_pages + 1):
-            time.sleep(0.5) # Pausa leve
-            url_page = f"https://api.tibiadata.com/v4/highscores/{world}/{RANK_CATEGORY}/{RANK_PROFESSION}/{page}"
-            p_data = get_api_data(url_page)
+        # Se a API falhar ou não trouxer highscores, para o loop
+        if not data or 'highscores' not in data:
+            break
             
-            if p_data and 'highscores' in p_data:
-                all_players.extend(p_data['highscores'].get('highscore_list', []))
+        page_list = data['highscores'].get('highscore_list', [])
+        
+        # SE A LISTA ESTIVER VAZIA: Significa que as páginas acabaram
+        if not page_list:
+            break
+        
+        # Adiciona os jogadores encontrados
+        all_players.extend(page_list)
+        
+        # TRAVA DE SEGURANÇA:
+        # Para na página 20 (Top 1000). 
+        if page >= 20:
+            break
+            
+        # Prepara para a próxima página
+        page += 1
+        time.sleep(0.5) # Pausa para não bloquear o IP
 
+    # Salva o resultado final
     if all_players:
         df = pd.DataFrame(all_players)
         df['extraction_date'] = datetime.now().date()
@@ -92,11 +82,12 @@ def process_highscores(world):
         filepath = os.path.join(target_folder, filename)
         
         df.to_parquet(filepath, index=False)
-        print(f"   > [Ranking XP] Salvo: {len(df)} linhas.")
+        print(f"   > [Ranking XP] Finalizado: {len(df)} jogadores extraídos.")
+    else:
+        print(f"   > [Ranking XP] Nenhum dado encontrado para {world}.")
 
 # --- LÓGICA DE EXTRAÇÃO: KILL STATISTICS ---
 def process_kill_statistics(world):
-    print(f"   > [Kill Stats] Iniciando...")
     url = f"https://api.tibiadata.com/v4/killstatistics/{world}"
     data = get_api_data(url)
     
@@ -118,31 +109,22 @@ def process_kill_statistics(world):
         filepath = os.path.join(target_folder, filename)
         
         df.to_parquet(filepath, index=False)
-        print(f"   > [Kill Stats] Salvo: {len(df)} linhas.")
+        print(f"   > [Kill Stats] Salvo: {len(df)} registros.")
 
 # --- ORQUESTRADOR ---
 def main():
     if not os.path.exists(ROOT_FOLDER):
         os.makedirs(ROOT_FOLDER)
 
-    # 1. Busca a lista dinâmica de todos os mundos
-    worlds_to_process = get_active_worlds()
-    
-    # 2. Loop principal
-    for i, world_name in enumerate(worlds_to_process):
-        print(f"\n[{i+1}/{len(worlds_to_process)}] Processando: {world_name}")
+    for i, world_name in enumerate(WORLDS):
+        print(f"\n[{i+1}/{len(WORLDS)}] Processando: {world_name}")
         
         process_highscores(world_name)
-        time.sleep(1)
         process_kill_statistics(world_name)
         
-        # Pausa entre mundos (importante para escala global)
-        time.sleep(1.5) 
+        time.sleep(1) 
 
-    print("\n--- FIM DA ROTINA GLOBAL ---")
-
-if __name__ == "__main__":
-    main()
+    print("\n--- FIM DA ROTINA ---")
 
 if __name__ == "__main__":
     main()
