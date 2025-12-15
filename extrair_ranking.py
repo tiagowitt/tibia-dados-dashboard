@@ -5,11 +5,7 @@ from datetime import datetime
 import os
 
 # --- CONFIGURAÇÕES ---
-# Lista fixa de mundos
-WORLDS = [
-    "Collabra", "Issobra", "Venebra", "Descubra",
-    "Etebra", "Luzibra", "Ustebra", "Yubra"
-]
+# Não usamos mais lista fixa. O script buscará todos os mundos online.
 
 # Configurações do Ranking
 RANK_CATEGORY = "experience"
@@ -25,8 +21,7 @@ FOLDER_KILLSTATS = "kill_statistics"
 def get_api_data(url):
     """Função genérica com retries simples"""
     try:
-        response = requests.get(url, timeout=15)
-        # Se der erro 404 ou 500, não quebra o script, apenas retorna None
+        response = requests.get(url, timeout=20) # Aumentei um pouco o timeout para segurança
         if response.status_code != 200:
             print(f"   [API Status {response.status_code}] URL: {url}")
             return None
@@ -35,40 +30,49 @@ def get_api_data(url):
         print(f"   [Erro Conexão] {e}")
         return None
 
-# --- LÓGICA DE EXTRAÇÃO: HIGHSCORES (Corrigida para pegar até Rank 1000) ---
+# --- NOVA FUNÇÃO: OBTER LISTA DE MUNDOS ---
+def get_active_worlds():
+    print("--- Buscando lista de mundos ativos... ---")
+    url = "https://api.tibiadata.com/v4/worlds"
+    data = get_api_data(url)
+    
+    world_list = []
+    if data and 'worlds' in data and 'regular_worlds' in data['worlds']:
+        for world in data['worlds']['regular_worlds']:
+            world_list.append(world['name'])
+            
+    print(f"Total de mundos encontrados: {len(world_list)}")
+    return world_list
+
+# --- LÓGICA DE EXTRAÇÃO: HIGHSCORES (Com a correção do Rank 1000) ---
 def process_highscores(world):
     print(f"   > [Ranking XP] Iniciando: {world}")
     all_players = []
     page = 1
     
-    # Loop Infinito com trava: Continua pegando páginas até a 20 ou acabar
+    # Loop Infinito com trava
     while True:
         url = f"https://api.tibiadata.com/v4/highscores/{world}/{RANK_CATEGORY}/{RANK_PROFESSION}/{page}"
         data = get_api_data(url)
         
-        # Se a API falhar ou não trouxer highscores, para o loop
         if not data or 'highscores' not in data:
             break
             
         page_list = data['highscores'].get('highscore_list', [])
         
-        # SE A LISTA ESTIVER VAZIA: Significa que as páginas acabaram
+        # Se a lista vier vazia, acabou
         if not page_list:
             break
         
-        # Adiciona os jogadores encontrados
         all_players.extend(page_list)
         
-        # TRAVA DE SEGURANÇA:
-        # Para na página 20 (Top 1000). 
+        # TRAVA DE SEGURANÇA: Top 1000 (Página 20)
         if page >= 20:
             break
             
-        # Prepara para a próxima página
         page += 1
-        time.sleep(0.5) # Pausa para não bloquear o IP
+        time.sleep(0.5) 
 
-    # Salva o resultado final
     if all_players:
         df = pd.DataFrame(all_players)
         df['extraction_date'] = datetime.now().date()
@@ -82,9 +86,9 @@ def process_highscores(world):
         filepath = os.path.join(target_folder, filename)
         
         df.to_parquet(filepath, index=False)
-        print(f"   > [Ranking XP] Finalizado: {len(df)} jogadores extraídos.")
+        print(f"   > [Ranking XP] Finalizado: {len(df)} linhas.")
     else:
-        print(f"   > [Ranking XP] Nenhum dado encontrado para {world}.")
+        print(f"   > [Ranking XP] Falha ou dados vazios.")
 
 # --- LÓGICA DE EXTRAÇÃO: KILL STATISTICS ---
 def process_kill_statistics(world):
@@ -116,15 +120,25 @@ def main():
     if not os.path.exists(ROOT_FOLDER):
         os.makedirs(ROOT_FOLDER)
 
-    for i, world_name in enumerate(WORLDS):
-        print(f"\n[{i+1}/{len(WORLDS)}] Processando: {world_name}")
+    # 1. Pega a lista dinâmica
+    worlds_to_process = get_active_worlds()
+    
+    # Backup caso a API de worlds falhe
+    if not worlds_to_process:
+        print("AVISO CRÍTICO: Não foi possível obter lista de mundos. Usando fallback.")
+        worlds_to_process = ["Antica", "Venebra"] 
+
+    # 2. Itera sobre todos
+    for i, world_name in enumerate(worlds_to_process):
+        print(f"\n[{i+1}/{len(worlds_to_process)}] Processando: {world_name}")
         
         process_highscores(world_name)
         process_kill_statistics(world_name)
         
+        # Pausa leve entre mundos para não sobrecarregar
         time.sleep(1) 
 
-    print("\n--- FIM DA ROTINA ---")
+    print("\n--- FIM DA ROTINA GLOBAL ---")
 
 if __name__ == "__main__":
     main()
