@@ -33,6 +33,6 @@ jobs:
       run: |
         git config --global user.name 'GitHub Action Bot'
         git config --global user.email 'action@github.com'
-        git add dados/*.parquet
+        git add dados/
         git commit -m "Atualizacao diaria dos dados" || echo "Sem mudanças para salvar"
         git push
