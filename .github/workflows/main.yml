@@ -1,0 +1,38 @@
+name: Atualizar Ranking Diário
+
+on:
+  schedule:
+    # Roda todos os dias às 09:00 UTC (06:00 Brasil)
+    - cron: '0 9 * * *'
+  workflow_dispatch: # Permite rodar manualmente para testar
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+
+    steps:
+    - name: Baixar código do repositório
+      uses: actions/checkout@v4
+
+    - name: Instalar Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Instalar bibliotecas
+      run: |
+        pip install -r requirements.txt
+
+    - name: Rodar script de extração
+      run: python extrair_ranking.py
+
+    - name: Salvar e Enviar Arquivo (Commit & Push)
+      run: |
+        git config --global user.name 'GitHub Action Bot'
+        git config --global user.email 'action@github.com'
+        git add dados/*.parquet
+        git commit -m "Atualizacao diaria dos dados" || echo "Sem mudanças para salvar"
+        git push
