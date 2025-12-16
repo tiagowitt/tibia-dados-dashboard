@@ -3,7 +3,7 @@ name: Atualizar Ranking Diário
 on:
   schedule:
     # Roda todos os dias às 09:00 UTC (06:00 Brasil)
-    - cron: '0 9 * * *'
+    - cron: '0 13 * * *'
   workflow_dispatch: # Permite rodar manualmente para testar
 
 jobs:
