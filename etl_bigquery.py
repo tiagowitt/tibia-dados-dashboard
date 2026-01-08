@@ -12,7 +12,7 @@ DATASET_ID = 'tibia_data'
 # Nome da Tabela a ser criada/atualizada
 TABLE_ID = 'ranking_history'
 # Caminho da pasta onde estão os arquivos parquet no seu repositório
-PARQUET_FOLDER = 'data/' 
+PARQUET_FOLDER = 'dados/ranking/Collabra' 
 
 def load_data_to_bigquery():
     # 1. Autenticação
