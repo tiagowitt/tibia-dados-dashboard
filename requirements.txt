@@ -2,3 +2,4 @@ requests
 pandas
 pyarrow
 fastparquet
+google-cloud-bigquery
