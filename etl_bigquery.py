@@ -6,7 +6,7 @@ import glob
 
 # --- CONFIGURAÇÕES ---
 # Nome do projeto no Google Cloud
-PROJECT_ID = 'seu-projeto-id'
+PROJECT_ID = 'tibia-analytics'
 # Nome do Dataset criado no BigQuery
 DATASET_ID = 'tibia_data'
 # Nome da Tabela a ser criada/atualizada
