@@ -18,7 +18,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.11'
 
       # 3. Autentica no Google Cloud usando a chave salva nos Secrets
       - name: Authenticate to Google Cloud
