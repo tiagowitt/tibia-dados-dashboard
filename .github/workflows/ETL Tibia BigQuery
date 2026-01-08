@@ -1,7 +1,7 @@
 on:
   # Roda automaticamente todo dia às 06:00 UTC
   schedule:
-    - cron: '0 14 * * *'
+    - cron: '0 12 * * *'
   # Permite rodar manualmente indo na aba "Actions" do GitHub
   workflow_dispatch:
 
