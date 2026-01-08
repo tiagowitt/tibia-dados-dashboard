@@ -1,0 +1,36 @@
+on:
+  # Roda automaticamente todo dia às 06:00 UTC
+  schedule:
+    - cron: '0 14 * * *'
+  # Permite rodar manualmente indo na aba "Actions" do GitHub
+  workflow_dispatch:
+
+jobs:
+  update-bigquery:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Baixa o repositório para a máquina virtual
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # 2. Instala o Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      # 3. Autentica no Google Cloud usando a chave salva nos Secrets
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      # 4. Instala as dependências
+      - name: Install dependencies
+        run: |
+          pip install pandas google-cloud-bigquery pyarrow fastparquet
+
+      # 5. Roda o script
+      - name: Run ETL Script
+        run: python etl_bigquery.py
