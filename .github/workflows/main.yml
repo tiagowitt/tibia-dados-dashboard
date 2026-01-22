@@ -29,6 +29,9 @@ jobs:
     - name: Rodar script de extração
       run: python extrair_ranking.py
 
+    - name: Rodar Extração de Guild (Nova)
+      run: python etl_guild.py
+
     - name: Salvar e Enviar Arquivo (Commit & Push)
       run: |
         git config --global user.name 'GitHub Action Bot'
