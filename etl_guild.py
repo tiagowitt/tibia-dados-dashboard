@@ -11,12 +11,18 @@ DATASET_ID = "tibia_data"
 TABLE_ID = "guild_members_history"
 
 def fetch_guild_data(guild_name):
-    # Trata espaços e caracteres especiais na URL
+    # 1. URL: Usa %20 para espaços (igual ao seu exemplo curl)
     safe_name = quote(guild_name)
     url = f"https://api.tibiadata.com/v4/guild/{safe_name}"
     
+    # 2. HEADERS: Importante para simular um navegador/curl e evitar bloqueio
+    headers = {
+        'accept': 'application/json',
+        'User-Agent': 'TibiaAnalyticsBot/1.0' 
+    }
+    
     print(f"Buscando dados da guild: {guild_name} (URL: {url})...")
-    response = requests.get(url)
+    response = requests.get(url, headers=headers)
     
     if response.status_code != 200:
         print(f"Erro na API: {response.status_code}")
@@ -24,34 +30,31 @@ def fetch_guild_data(guild_name):
 
     data = response.json()
     
-    # Verifica estrutura básica
+    # Validação de Segurança
     if 'guild' not in data or 'members' not in data['guild']:
-        print("Guild não encontrada ou sem membros no JSON.")
+        print("Guild não encontrada ou chave 'members' ausente.")
         return []
 
     members_data = []
     extraction_date = datetime.now().date()
+    
+    # A LISTA DE MEMBROS É PLANA (DIRETA)
+    # Não existe mais agrupamento por Rank, o rank é um atributo de cada membro.
+    raw_members_list = data['guild']['members']
+    
+    print(f"Processando {len(raw_members_list)} membros encontrados...")
 
-    # O JSON vem agrupado por Rank
-    for rank_group in data['guild']['members']:
-        # Tenta pegar o nome do rank (segurança caso mude de novo)
-        rank_name = rank_group.get('name', 'Unknown Rank')
-        
-        # --- A NOVA CORREÇÃO ESTÁ AQUI ---
-        # Usa .get('characters', []) para garantir que ranks vazios não quebrem o código
-        characters_list = rank_group.get('characters', [])
-        
-        for char in characters_list:
-            members_data.append({
-                "guild_name": data['guild']['name'],
-                "rank": rank_name,
-                "character_name": char['name'],
-                "vocation": char['vocation'],
-                "level": char['level'],
-                "joined_date": char['joined'],
-                "status": char['status'],
-                "extraction_date": extraction_date
-            })
+    for member in raw_members_list:
+        members_data.append({
+            "guild_name": data['guild']['name'],
+            "rank": member.get('rank', 'Unknown'),         # Pega direto do membro
+            "character_name": member.get('name', 'Unknown'), # Pega direto do membro
+            "vocation": member.get('vocation', 'None'),
+            "level": member.get('level', 0),
+            "joined_date": member.get('joined', None),
+            "status": member.get('status', 'offline'),
+            "extraction_date": extraction_date
+        })
             
     return members_data
 
@@ -65,8 +68,8 @@ def save_to_bigquery(data):
     
     df = pd.DataFrame(data)
     
-    # Converte colunas de data
-    df['joined_date'] = pd.to_datetime(df['joined_date']).dt.date
+    # Tratamento de Datas
+    df['joined_date'] = pd.to_datetime(df['joined_date'], errors='coerce').dt.date
     df['extraction_date'] = pd.to_datetime(df['extraction_date']).dt.date
 
     # Configuração do Job (Append)
