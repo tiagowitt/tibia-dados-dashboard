@@ -2,7 +2,7 @@ import requests
 import pandas as pd
 from google.cloud import bigquery
 from datetime import datetime
-from urllib.parse import quote # <--- Nova ferramenta de correção de links
+from urllib.parse import quote
 
 # CONFIGURAÇÃO
 GUILD_NAME = "Digit One"  # <--- Nome da Guild
@@ -11,7 +11,7 @@ DATASET_ID = "tibia_data"
 TABLE_ID = "guild_members_history"
 
 def fetch_guild_data(guild_name):
-    # CORREÇÃO: Usa 'quote' para transformar espaços e acentos em formato de URL válido
+    # Trata espaços e caracteres especiais na URL
     safe_name = quote(guild_name)
     url = f"https://api.tibiadata.com/v4/guild/{safe_name}"
     
@@ -20,12 +20,11 @@ def fetch_guild_data(guild_name):
     
     if response.status_code != 200:
         print(f"Erro na API: {response.status_code}")
-        # Dica: Se der erro 404, a guild não existe.
         return []
 
     data = response.json()
     
-    # Verifica se a guild existe e tem membros
+    # Verifica estrutura básica
     if 'guild' not in data or 'members' not in data['guild']:
         print("Guild não encontrada ou sem membros no JSON.")
         return []
@@ -35,7 +34,9 @@ def fetch_guild_data(guild_name):
 
     # O JSON vem agrupado por Rank
     for rank_group in data['guild']['members']:
-        rank_name = rank_group['rank_title']
+        # --- A CORREÇÃO ESTÁ AQUI ---
+        # A API v4 usa a chave 'name' para o título do rank, não 'rank_title'
+        rank_name = rank_group['name'] 
         
         for char in rank_group['characters']:
             members_data.append({
