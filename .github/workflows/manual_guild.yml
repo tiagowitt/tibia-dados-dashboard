@@ -1,4 +1,37 @@
-name: Manual - Atualizar Guild
+name: Manual - Atualizar Guild (Apenas)
 
 on:
-  workflow_dispatch:  # <--- Isso cria o botão mágico
+  workflow_dispatch: # Apenas manual
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Baixar código do repositório
+      uses: actions/checkout@v4
+
+    - name: Instalar Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Instalar bibliotecas
+      run: |
+        pip install -r requirements.txt
+
+    # --- PASSO CRUCIAL: CRIAR A CHAVE DE ACESSO ---
+    # Precisamos "materializar" a chave que está nos Segredos para um arquivo
+    - name: Criar Arquivo de Credenciais Google
+      env:
+        # IMPORTANTE: Verifique se o nome do segredo no GitHub é este mesmo.
+        # Às vezes pode ser 'GCP_KEY', 'GOOGLE_CREDENTIALS', etc.
+        GCP_KEY_CONTENT: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }} 
+      run: |
+        echo "$GCP_KEY_CONTENT" > gcp_key.json
+
+    - name: Rodar Extração de Guild (Nova)
+      env:
+        # Avisa ao Python onde está a chave que acabamos de criar
+        GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp_key.json
+      run: python etl_guild.py
