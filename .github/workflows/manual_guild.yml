@@ -1,15 +1,27 @@
 name: Manual - Atualizar Guild (Apenas)
 
 on:
-  workflow_dispatch: # Apenas manual
+  workflow_dispatch: # Botão manual
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    
+    # Adicionei permissões básicas para evitar erros de leitura
+    permissions:
+      contents: read
+      id-token: write 
 
     steps:
     - name: Baixar código do repositório
       uses: actions/checkout@v4
+
+    # 1. Autenticação Google (O jeito profissional que você já usa)
+    - name: Autenticar no Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+        # Isso cria o arquivo e define a variável de ambiente automaticamente
 
     - name: Instalar Python
       uses: actions/setup-python@v4
@@ -20,18 +32,8 @@ jobs:
       run: |
         pip install -r requirements.txt
 
-    # --- PASSO CRUCIAL: CRIAR A CHAVE DE ACESSO ---
-    # Precisamos "materializar" a chave que está nos Segredos para um arquivo
-    - name: Criar Arquivo de Credenciais Google
-      env:
-        # IMPORTANTE: Verifique se o nome do segredo no GitHub é este mesmo.
-        # Às vezes pode ser 'GCP_KEY', 'GOOGLE_CREDENTIALS', etc.
-        GCP_KEY_CONTENT: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }} 
-      run: |
-        echo "$GCP_KEY_CONTENT" > gcp_key.json
-
+    # 2. Rodar o Script
+    # Nota: Não precisa mais definir GOOGLE_APPLICATION_CREDENTIALS aqui, 
+    # a action "google-github-actions/auth" já fez isso sozinha no passo 1.
     - name: Rodar Extração de Guild (Nova)
-      env:
-        # Avisa ao Python onde está a chave que acabamos de criar
-        GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp_key.json
       run: python etl_guild.py
