@@ -5,7 +5,7 @@ from datetime import datetime
 from urllib.parse import quote
 
 # CONFIGURAÇÃO
-GUILD_NAME = "Digit One"  # <--- Nome da Guild
+GUILD_NAME = "Digit One"
 PROJECT_ID = "tibia-analytics"
 DATASET_ID = "tibia_data"
 TABLE_ID = "guild_members_history"
@@ -34,11 +34,14 @@ def fetch_guild_data(guild_name):
 
     # O JSON vem agrupado por Rank
     for rank_group in data['guild']['members']:
-        # --- A CORREÇÃO ESTÁ AQUI ---
-        # A API v4 usa a chave 'name' para o título do rank, não 'rank_title'
-        rank_name = rank_group['name'] 
+        # Tenta pegar o nome do rank (segurança caso mude de novo)
+        rank_name = rank_group.get('name', 'Unknown Rank')
         
-        for char in rank_group['characters']:
+        # --- A NOVA CORREÇÃO ESTÁ AQUI ---
+        # Usa .get('characters', []) para garantir que ranks vazios não quebrem o código
+        characters_list = rank_group.get('characters', [])
+        
+        for char in characters_list:
             members_data.append({
                 "guild_name": data['guild']['name'],
                 "rank": rank_name,
