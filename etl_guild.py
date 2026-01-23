@@ -2,36 +2,38 @@ import requests
 import pandas as pd
 from google.cloud import bigquery
 from datetime import datetime
-import os
+from urllib.parse import quote # <--- Nova ferramenta de correção de links
 
 # CONFIGURAÇÃO
-GUILD_NAME = "Digit One"  # <--- COLOQUE O NOME DA GUILD AQUI (Exato, com espaços)
+GUILD_NAME = "Digit One"  # <--- Nome da Guild
 PROJECT_ID = "tibia-analytics"
 DATASET_ID = "tibia_data"
 TABLE_ID = "guild_members_history"
 
 def fetch_guild_data(guild_name):
-    # URL da API (TibiaData v4)
-    url = f"https://api.tibiadata.com/v4/guild/{guild_name.replace(' ', '+')}"
+    # CORREÇÃO: Usa 'quote' para transformar espaços e acentos em formato de URL válido
+    safe_name = quote(guild_name)
+    url = f"https://api.tibiadata.com/v4/guild/{safe_name}"
     
-    print(f"Buscando dados da guild: {guild_name}...")
+    print(f"Buscando dados da guild: {guild_name} (URL: {url})...")
     response = requests.get(url)
     
     if response.status_code != 200:
         print(f"Erro na API: {response.status_code}")
+        # Dica: Se der erro 404, a guild não existe.
         return []
 
     data = response.json()
     
-    # Verifica se a guild existe
+    # Verifica se a guild existe e tem membros
     if 'guild' not in data or 'members' not in data['guild']:
-        print("Guild não encontrada ou sem membros.")
+        print("Guild não encontrada ou sem membros no JSON.")
         return []
 
     members_data = []
     extraction_date = datetime.now().date()
 
-    # O JSON vem agrupado por Rank (Líder, Vice, Membro, etc)
+    # O JSON vem agrupado por Rank
     for rank_group in data['guild']['members']:
         rank_name = rank_group['rank_title']
         
@@ -43,7 +45,7 @@ def fetch_guild_data(guild_name):
                 "vocation": char['vocation'],
                 "level": char['level'],
                 "joined_date": char['joined'],
-                "status": char['status'], # Online/Offline
+                "status": char['status'],
                 "extraction_date": extraction_date
             })
             
@@ -59,13 +61,13 @@ def save_to_bigquery(data):
     
     df = pd.DataFrame(data)
     
-    # Converte colunas de data para o formato correto do BigQuery
+    # Converte colunas de data
     df['joined_date'] = pd.to_datetime(df['joined_date']).dt.date
     df['extraction_date'] = pd.to_datetime(df['extraction_date']).dt.date
 
-    # Configuração do Job (Append para criar histórico)
+    # Configuração do Job (Append)
     job_config = bigquery.LoadJobConfig(
-        write_disposition="WRITE_APPEND", # Mantém o histórico dia a dia
+        write_disposition="WRITE_APPEND",
         schema=[
             bigquery.SchemaField("guild_name", "STRING"),
             bigquery.SchemaField("rank", "STRING"),
