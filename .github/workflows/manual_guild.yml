@@ -1,0 +1,4 @@
+name: Manual - Atualizar Guild
+
+on:
+  workflow_dispatch:  # <--- Isso cria o botão mágico
