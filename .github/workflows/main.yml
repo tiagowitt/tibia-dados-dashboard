@@ -1,4 +1,4 @@
-name: Atualizar Ranking Diário
+name: Atualizar Ranking e Guild (Diário)
 
 on:
   schedule:
@@ -11,11 +11,18 @@ jobs:
     runs-on: ubuntu-latest
     
     permissions:
-      contents: write
+      contents: write  # Necessário para salvar o CSV no Git
+      id-token: write  # OBRIGATÓRIO para a autenticação do Google funcionar
 
     steps:
     - name: Baixar código do repositório
       uses: actions/checkout@v4
+
+    # --- AQUI ESTÁ A CORREÇÃO (Autenticação) ---
+    - name: Autenticar no Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
     - name: Instalar Python
       uses: actions/setup-python@v4
@@ -26,16 +33,20 @@ jobs:
       run: |
         pip install -r requirements.txt
 
-    - name: Rodar script de extração
+    # --- Script 1: Ranking (Mantém o original que salva CSV) ---
+    - name: Rodar script de extração (Ranking)
       run: python extrair_ranking.py
 
-    - name: Rodar Extração de Guild (Nova)
+    # --- Script 2: Guild (Novo - Agora autenticado!) ---
+    - name: Rodar Extração de Guild
       run: python etl_guild.py
 
+    # --- Commit dos CSVs (Para o Ranking) ---
     - name: Salvar e Enviar Arquivo (Commit & Push)
       run: |
         git config --global user.name 'GitHub Action Bot'
         git config --global user.email 'action@github.com'
         git add dados/
-        git commit -m "Atualizacao diaria dos dados" || echo "Sem mudanças para salvar"
+        # O "|| echo" impede que o script pare se não houver mudanças no ranking
+        git commit -m "Atualizacao diaria dos dados" || echo "Sem mudanças no ranking para salvar"
         git push
