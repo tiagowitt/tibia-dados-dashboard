@@ -4,51 +4,54 @@ from google.cloud import bigquery
 from datetime import datetime
 from urllib.parse import quote
 
-# CONFIGURAÇÃO
-GUILD_NAME = "Digit One"
+# CONFIGURAÇÃO: Agora é uma lista com as duas guilds
+GUILDS_TO_TRACK = [
+    "Digit One", 
+    "Digit One Academy"
+]
+
 PROJECT_ID = "tibia-analytics"
 DATASET_ID = "tibia_data"
 TABLE_ID = "guild_members_history"
 
 def fetch_guild_data(guild_name):
-    # 1. URL: Usa %20 para espaços (igual ao seu exemplo curl)
+    # 1. URL: Usa a função quote para tratar espaços (ex: Digit%20One)
     safe_name = quote(guild_name)
     url = f"https://api.tibiadata.com/v4/guild/{safe_name}"
     
-    # 2. HEADERS: Importante para simular um navegador/curl e evitar bloqueio
+    # 2. HEADERS: Simula um navegador para evitar bloqueio
     headers = {
         'accept': 'application/json',
         'User-Agent': 'TibiaAnalyticsBot/1.0' 
     }
     
-    print(f"Buscando dados da guild: {guild_name} (URL: {url})...")
+    print(f"Buscando dados da guild: {guild_name}...")
     response = requests.get(url, headers=headers)
     
     if response.status_code != 200:
-        print(f"Erro na API: {response.status_code}")
+        print(f"Erro na API ({guild_name}): {response.status_code}")
         return []
 
     data = response.json()
     
     # Validação de Segurança
     if 'guild' not in data or 'members' not in data['guild']:
-        print("Guild não encontrada ou chave 'members' ausente.")
+        print(f"Aviso: Guild '{guild_name}' não encontrada ou sem membros.")
         return []
 
     members_data = []
     extraction_date = datetime.now().date()
     
     # A LISTA DE MEMBROS É PLANA (DIRETA)
-    # Não existe mais agrupamento por Rank, o rank é um atributo de cada membro.
     raw_members_list = data['guild']['members']
     
-    print(f"Processando {len(raw_members_list)} membros encontrados...")
+    print(f" > {guild_name}: {len(raw_members_list)} membros encontrados.")
 
     for member in raw_members_list:
         members_data.append({
-            "guild_name": data['guild']['name'],
-            "rank": member.get('rank', 'Unknown'),         # Pega direto do membro
-            "character_name": member.get('name', 'Unknown'), # Pega direto do membro
+            "guild_name": data['guild']['name'], # O nome oficial que vem da API
+            "rank": member.get('rank', 'Unknown'),
+            "character_name": member.get('name', 'Unknown'),
             "vocation": member.get('vocation', 'None'),
             "level": member.get('level', 0),
             "joined_date": member.get('joined', None),
@@ -60,7 +63,7 @@ def fetch_guild_data(guild_name):
 
 def save_to_bigquery(data):
     if not data:
-        print("Nenhum dado para salvar.")
+        print("Nenhum dado para salvar no total.")
         return
 
     client = bigquery.Client(project=PROJECT_ID)
@@ -87,11 +90,19 @@ def save_to_bigquery(data):
         ]
     )
 
+    # Envia tudo de uma vez
     job = client.load_table_from_dataframe(df, table_ref, job_config=job_config)
     job.result()
-    print(f"Sucesso! {len(df)} membros carregados no BigQuery.")
+    print(f"Sucesso Total! {len(df)} linhas carregadas no BigQuery (Somando todas as guilds).")
 
-# EXECUÇÃO
+# EXECUÇÃO PRINCIPAL
 if __name__ == "__main__":
-    members = fetch_guild_data(GUILD_NAME)
-    save_to_bigquery(members)
+    all_guilds_data = []
+    
+    # Loop: Passa por cada guild da lista
+    for guild in GUILDS_TO_TRACK:
+        guild_members = fetch_guild_data(guild)
+        all_guilds_data.extend(guild_members) # Junta na lista principal
+        
+    # Salva tudo de uma vez só no final
+    save_to_bigquery(all_guilds_data)
