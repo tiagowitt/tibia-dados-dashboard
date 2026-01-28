@@ -1,13 +1,24 @@
+name: Enviar Dados para BigQuery
+
 on:
-  # Roda automaticamente todo dia às 06:00 UTC
-  schedule:
-    - cron: '0 12 * * *'
-  # Permite rodar manualmente indo na aba "Actions" do GitHub
+  # GATILHO AUTOMÁTICO:
+  # Roda assim que o workflow "Atualizar Ranking e Guild (Diário)" for concluído
+  workflow_run:
+    workflows: ["Atualizar Ranking e Guild (Diário)"]
+    types:
+      - completed
+
+  # GATILHO MANUAL:
+  # Mantém a opção de rodar manualmente se precisar testar
   workflow_dispatch:
 
 jobs:
   update-bigquery:
     runs-on: ubuntu-latest
+    # TRAVA DE SEGURANÇA:
+    # Esta linha garante que este script só rode se a extração (workflow anterior) deu SUCESSO.
+    # Se a extração falhar (failure), este workflow será ignorado.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       # 1. Baixa o repositório para a máquina virtual
