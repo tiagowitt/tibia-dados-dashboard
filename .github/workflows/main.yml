@@ -3,7 +3,7 @@ name: Atualizar Ranking e Guild (Diário)
 on:
   schedule:
     # Roda todos os dias às 09:00 UTC (06:00 Brasil)
-    - cron: '47 9 * * *'
+    - cron: '47 8 * * *'
   workflow_dispatch: # Permite rodar manualmente para testar
 
 jobs:
