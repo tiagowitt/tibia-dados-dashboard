@@ -3,6 +3,7 @@ import pandas as pd
 from google.cloud import bigquery
 from google.oauth2 import service_account
 import glob
+from datetime import datetime
 
 # --- CONFIGURAÇÕES ---
 # Nome do projeto no Google Cloud
@@ -15,11 +16,20 @@ TABLE_ID = 'ranking_history'
 PARQUET_FOLDER = 'dados/ranking/Collabra' 
 
 def load_data_to_bigquery():
+    # --- TRAVA DE SEGURANÇA CONTRA REPROCESSAMENTO DESNECESSÁRIO ---
+    # Se o arquivo do dia de hoje não existir localmente, significa que
+    # o workflow anterior não gerou novos dados (bloqueado pela trava de redundância).
+    data_hoje = datetime.now().date()
+    arquivo_hoje = f"ranking_Collabra_{data_hoje}.parquet"
+    caminho_arquivo_hoje = os.path.join(PARQUET_FOLDER, arquivo_hoje)
+
+    if not os.path.exists(caminho_arquivo_hoje):
+        print(f"[AVISO] O arquivo de hoje ({arquivo_hoje}) não foi gerado nesta rodada.")
+        print("A base do BigQuery já está atualizada. Abortando processo de carga para poupar processamento.")
+        return
+    # -----------------------------------------------------------------
+
     # 1. Autenticação
-    # O GitHub Actions vai injetar a chave via variável de ambiente, 
-    # ou podemos usar a autenticação padrão se configurado no passo anterior do YAML.
-    # Aqui assumimos que o ambiente já está autenticado ou buscamos a credencial.
-    
     # Se estiver usando o 'google-github-actions/auth', o client pega automático:
     client = bigquery.Client(project=PROJECT_ID)
 
@@ -49,28 +59,17 @@ def load_data_to_bigquery():
 
     full_df = pd.concat(df_list, ignore_index=True)
     
-    # 3. Tratamento Básico (Opcional)
-    # Garante que tipos de dados complexos não quebrem o envio (ex: datas)
-    # full_df['date'] = pd.to_datetime(full_df['date'])
-
     print(f"Total de linhas para processar: {len(full_df)}")
 
     # 4. Configuração do Job de Carga
     table_ref = client.dataset(DATASET_ID).table(TABLE_ID)
     
     job_config = bigquery.LoadJobConfig(
-        # WRITE_TRUNCATE: Substitui a tabela inteira. 
-        # Use WRITE_APPEND se quiser apenas adicionar novos dados e tem certeza que não duplicará.
+        # WRITE_TRUNCATE: Substitui a tabela inteira com base no histórico completo do Git.
         write_disposition="WRITE_TRUNCATE", 
         
         # Detecta o esquema automaticamente baseado no DataFrame
         autodetect=True,
-        
-        # Opção para particionar a tabela (Opcional, mas recomendado para performance)
-        # time_partitioning=bigquery.TimePartitioning(
-        #     type_=bigquery.TimePartitioningType.DAY,
-        #     field="data_extracao" # Nome da coluna de data no seu parquet
-        # )
     )
 
     # 5. Enviar para o BigQuery
