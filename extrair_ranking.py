@@ -5,6 +5,7 @@ import pandas as pd
 import time
 from datetime import datetime
 import os
+import sys
 
 # --- CONFIGURAÇÕES ---
 RANK_CATEGORY = "experience"
@@ -145,7 +146,7 @@ def process_highscores(world):
         saved, count = save_parquet(df, world, FOLDER_RANKING)
         if saved:
             msg_pendentes = f"(Pendentes para Global: {failed_pages})" if failed_pages else ""
-            print(f"   > [Ranking XP] Salvo: {len(df)} linhas. {msg_pendentes}", flush=True)
+            print(f"   > [Ranking XP] Salvo: {len(df)} lines. {msg_pendentes}", flush=True)
     else:
         print(f"   > [Ranking XP] AVISO: Nenhum dado coletado.", flush=True)
 
@@ -202,11 +203,19 @@ def main():
     if not os.path.exists(ROOT_FOLDER):
         os.makedirs(ROOT_FOLDER)
 
-    # --- ALTERAÇÃO AQUI: FORÇANDO APENAS COLLABRA ---
-    # worlds = get_active_worlds() # (Comentado para não buscar todos)
     print("--- Modo Manual Ativado: Apenas Collabra ---", flush=True)
     worlds = ["Collabra"] 
-    # ------------------------------------------------
+
+    # --- TRAVA DE SEGURANÇA: VERIFICAÇÃO DE ARQUIVO DIÁRIO ---
+    data_hoje = datetime.now().date()
+    arquivo_hoje = f"{FOLDER_RANKING}_Collabra_{data_hoje}.parquet"
+    caminho_completo = os.path.join(ROOT_FOLDER, FOLDER_RANKING, "Collabra", arquivo_hoje)
+
+    if os.path.exists(caminho_completo):
+        print(f"\n[AVISO] O arquivo de dados de hoje ({data_hoje}) já existe na pasta Collabra.")
+        print("A rotina atual foi abortada para evitar duplicidade. Finalizando execução.", flush=True)
+        sys.exit(0)
+    # ---------------------------------------------------------
 
     all_global_failures = []
 
