@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     
     permissions:
-      contents: write  # Necessário para salvar o CSV no Git
+      contents: write  # Necessário para salvar os arquivos no Git
       id-token: write  # OBRIGATÓRIO para a autenticação do Google funcionar
 
     steps:
@@ -42,7 +42,22 @@ jobs:
     - name: Rodar Extração de Guild
       run: python etl_guild.py
 
+    # --- VERIFICAÇÃO DE SEGURANÇA ---
+    # Analisa se os scripts realmente geraram arquivos novos ou se foram abortados
+    - name: Verificar se novos dados foram gerados
+      id: verificar_mudancas
+      run: |
+        if [ -z "$(git status --porcelain dados/)" ]; then
+          echo "alterado=nao" >> $GITHUB_OUTPUT
+          echo "Nenhum dado novo para salvar hoje. A execução automática tardia foi contida."
+        else
+          echo "alterado=sim" >> $GITHUB_OUTPUT
+          echo "Novos dados detectados. Prosseguindo para o salvamento."
+        fi
+
+    # Só roda o Commit e Push se a etapa anterior confirmar que há mudanças reais
     - name: Salvar e Enviar Arquivo (Commit & Push)
+      if: steps.verificar_mudancas.outputs.alterado == 'sim'
       run: |
         git config --global user.name 'GitHub Action Bot'
         git config --global user.email 'action@github.com'
