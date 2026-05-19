@@ -51,4 +51,4 @@ jobs:
       # Faz uma requisição POST enviando o token de segurança para o link da sua planilha
       - name: Forçar Atualização das Páginas Conectadas no Sheets
         run: |
-          curl -X POST "https://script.google.com/macros/s/AKfycby4dxhuNydP_9ZCdSpNftd8AbWWssaIspt2WDsz37vmVV6Kv1GsQcqQa7HCITTXOPIl/exec?token=Tibia_Analytics_Tiago_435435"
+          curl -X POST "https://script.google.com/macros/s/AKfycbz9Br7f9Tp9__Vif6_MsZZjTjSc3uXvU0sCdMwhz0JtAFLsPe4v-W22C3Gztt8T4Bsl/exec?token=Tibia_Analytics_Tiago_435435"
