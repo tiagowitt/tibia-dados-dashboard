@@ -27,9 +27,10 @@ jobs:
 
       # 2. Instala o Python
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       # 3. Autentica no Google Cloud usando a chave salva nos Secrets
       - name: Authenticate to Google Cloud
@@ -42,6 +43,12 @@ jobs:
         run: |
           pip install pandas google-cloud-bigquery pyarrow fastparquet
 
-      # 5. Roda o script
+      # 5. Roda o script que carrega os dados no BigQuery
       - name: Run ETL Script
         run: python etl_bigquery.py
+
+      # --- NOVA ETAPA: DISPARAR ATUALIZAÇÃO DA PLANILHA ---
+      # Faz uma requisição POST enviando o token de segurança para o link da sua planilha
+      - name: Forçar Atualização das Páginas Conectadas no Sheets
+        run: |
+          curl -X POST "https://script.google.com/macros/s/AKfycby4dxhuNydP_9ZCdSpNftd8AbWWssaIspt2WDsz37vmVV6Kv1GsQcqQa7HCITTXOPIl/exec?token=Tibia_Analytics_Tiago_435435"
