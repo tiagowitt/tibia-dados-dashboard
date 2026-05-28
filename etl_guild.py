@@ -3,6 +3,7 @@ import pandas as pd
 from google.cloud import bigquery
 from datetime import datetime
 from urllib.parse import quote
+import sys
 
 # CONFIGURAÇÃO: Agora é uma lista com as duas guilds
 GUILDS_TO_TRACK = [
@@ -13,6 +14,29 @@ GUILDS_TO_TRACK = [
 PROJECT_ID = "tibia-analytics"
 DATASET_ID = "tibia_data"
 TABLE_ID = "guild_members_history"
+
+def check_data_exists_today():
+    """Verifica se os dados de hoje já estão no BigQuery antes de rodar a extração."""
+    client = bigquery.Client(project=PROJECT_ID)
+    data_hoje = datetime.now().date()
+    
+    query = f"""
+        SELECT COUNT(*) as total 
+        FROM `{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}` 
+        WHERE extraction_date = '{data_hoje}'
+    """
+    
+    try:
+        query_job = client.query(query)
+        for row in query_job:
+            if row.total > 0:
+                return True
+    except Exception as e:
+        # Se der erro (ex: a tabela não existe ainda), assume que não tem dados
+        print(f"Aviso de verificação inicial: Tabela pode não existir ainda. Detalhe: {e}")
+        return False
+        
+    return False
 
 def fetch_guild_data(guild_name):
     # 1. URL: Usa a função quote para tratar espaços (ex: Digit%20One)
@@ -97,6 +121,17 @@ def save_to_bigquery(data):
 
 # EXECUÇÃO PRINCIPAL
 if __name__ == "__main__":
+    
+    # --- NOVA TRAVA DE SEGURANÇA ---
+    data_de_hoje = datetime.now().date()
+    print(f"Iniciando rotina de Guilds para o dia {data_de_hoje}...")
+    
+    if check_data_exists_today():
+        print(f"\n[AVISO] Os dados das guilds para hoje ({data_de_hoje}) já existem no BigQuery.")
+        print("A rotina automática atrasada foi cancelada para evitar duplicidade. Encerrando o script.")
+        sys.exit(0)
+    # -------------------------------
+
     all_guilds_data = []
     
     # Loop: Passa por cada guild da lista
