@@ -51,9 +51,9 @@ jobs:
       # Faz uma requisição POST enviando o token de segurança para o link da sua planilha
       - name: Forçar Atualização das Páginas Conectadas no Sheets
         run: |
-          curl -X POST "https://script.google.com/macros/s/AKfycbz9Br7f9Tp9__Vif6_MsZZjTjSc3uXvU0sCdMwhz0JtAFLsPe4v-W22C3Gztt8T4Bsl/exec?token=Tibia_Analytics_Tiago_435435"
+          curl -X POST "https://script.google.com/macros/s/AKfycbz9Br7f9Tp9__Vif6_MsZZjTjSc3uXvU0sCdMwhz0JtAFLsPe4v-W22C3Gztt8T4Bsl/exec?token=${{ secrets.SHEET2_TOKEN }}"
 
 
           - name: Forçar Atualização da Segunda Planilha (cópia)
         run: |
-          curl -X POST "https://script.google.com/macros/s/AKfycbz2R6rsgYIfZ96bG-BnjDD6aJ31B9oHHatRw8U8cvVCrmDtpFAqqOEePj0hhIcWuzc0Ow/exec?token=Tibia_Analytics_Tiago_435435"
+          curl -X POST "https://script.google.com/macros/s/AKfycbz2R6rsgYIfZ96bG-BnjDD6aJ31B9oHHatRw8U8cvVCrmDtpFAqqOEePj0hhIcWuzc0Ow/exec?token=${{ secrets.SHEET2_TOKEN }}"
